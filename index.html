@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ideology Spectrum — Political Ideology Terminal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: rgba(18, 18, 30, 0.85);
+            --surface2: rgba(25, 25, 42, 0.75);
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #d0d0e0;
+            --text2: #9090b0;
+            --accent: #6ec6f5;
+            --accent2: #b388ff;
+            --accent3: #ff6b9d;
+            --glow1: rgba(110, 198, 245, 0.3);
+            --glow2: rgba(179, 136, 255, 0.25);
+            --glow3: rgba(255, 107, 157, 0.2);
+            --font: 'Segoe UI', system-ui, sans-serif;
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box} body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+        body::before{
+            content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+            background:radial-gradient(ellipse at 20% 20%, rgba(110,198,245,0.06), transparent 55%),
+            radial-gradient(ellipse at 75% 60%, rgba(179,136,255,0.05), transparent 55%),
+            radial-gradient(ellipse at 40% 80%, rgba(255,107,157,0.04), transparent 55%),
+            url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30 L60 30 M30 0 L30 60' stroke='rgba(255,255,255,0.015)' stroke-width='0.5'/%3E%3C/svg%3E");
+        }
+        body::after{
+            content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.03;
+            background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+            background-size:300px 300px;animation:noiseShift 8s infinite alternate;
+        }
+        @keyframes noiseShift{0%{transform:translate(0,0)}100%{transform:translate(-20px,15px)}}
+        #app{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:20px;min-height:100vh}
+        .screen{display:none;animation:fadeSlideIn 0.4s ease}.screen.active{display:block}
+        @keyframes fadeSlideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.4);transition:0.3s;position:relative;overflow:hidden}
+        .card:hover{border-color:rgba(255,255,255,0.15);box-shadow:0 12px 40px rgba(0,0,0,0.5),0 0 60px var(--glow1)}
+        .card::after{content:'';position:absolute;top:-10%;left:0;width:100%;height:3px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);animation:scanLine 4s linear infinite;opacity:0.4;pointer-events:none}
+        @keyframes scanLine{0%{top:-10%}100%{top:110%}}
+        .btn{display:inline-block;padding:13px 28px;border-radius:50px;border:1px solid rgba(255,255,255,0.2);background:var(--glass);color:#e0e0f0;cursor:pointer;font-size:1rem;font-weight:500;letter-spacing:0.02em;transition:0.3s;text-decoration:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+        .btn:hover{border-color:var(--accent);box-shadow:0 0 25px var(--glow1),0 0 50px var(--glow1);transform:translateY(-2px);color:#fff}
+        .btn.accent{background:rgba(110,198,245,0.15);border-color:rgba(110,198,245,0.4);font-weight:600}
+        .btn.accent2{background:rgba(179,136,255,0.15);border-color:rgba(179,136,255,0.4);font-weight:600}
+        .btn.small{padding:8px 16px;font-size:0.85rem;border-radius:30px}
+        .progress-bar{background:rgba(255,255,255,0.05);border-radius:20px;height:8px;margin:16px 0;overflow:hidden}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));border-radius:20px;transition:width 0.5s ease}
+        .question-text{font-size:1.15rem;font-weight:500;margin-bottom:20px;color:#e8e8f8;line-height:1.5}
+        .option-btn{display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.07);background:var(--surface2);cursor:pointer;transition:0.3s;text-align:left;color:#c8c8e0;font-size:0.95rem}
+        .option-btn:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.04)}
+        .option-btn.selected{border-color:var(--accent);background:rgba(110,198,245,0.12);box-shadow:0 0 20px var(--glow1),inset 0 0 20px rgba(110,198,245,0.05);color:#fff}
+        .option-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,0.3)}
+        .option-btn.selected .option-dot{border-color:var(--accent);background:var(--accent);box-shadow:0 0 10px var(--accent)}
+        .ideology-badge{display:inline-block;padding:10px 24px;border-radius:50px;font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,rgba(110,198,245,0.2),rgba(179,136,255,0.2));border:2px solid rgba(255,255,255,0.2);animation:pulseGlow 3s infinite}
+        @keyframes pulseGlow{0%,100%{box-shadow:0 0 20px var(--glow1),0 0 40px var(--glow1)}50%{box-shadow:0 0 35px var(--glow2),0 0 60px var(--glow2)}}
+        .match-percent{font-size:3rem;font-weight:800;background:linear-gradient(135deg,#6ec6f5,#b388ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+        .radical-meter{display:flex;gap:4px;justify-content:center;margin:12px 0}
+        .radical-seg{width:40px;height:6px;border-radius:3px;background:rgba(255,255,255,0.1)}
+        .radical-seg.active{background:#4caf84;box-shadow:0 0 8px rgba(76,175,132,0.5)}
+        .radical-seg.active.mid{background:#ffb74d;box-shadow:0 0 8px rgba(255,183,77,0.5)}
+        .radical-seg.active.high{background:#ef6c5b;box-shadow:0 0 8px rgba(239,108,91,0.5)}
+        .radical-seg.active.ext{background:#d32f2f;box-shadow:0 0 10px rgba(211,47,47,0.6)}
+        .chart-container{max-width:500px;margin:20px auto;padding:16px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)}
+        .ideology-list{max-height:300px;overflow-y:auto;padding-right:8px}
+        .ideology-row{display:flex;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.02);border-radius:var(--radius-sm);margin-bottom:6px;border:1px solid rgba(255,255,255,0.05)}
+        .ideology-row.top{border-color:var(--accent);background:rgba(110,198,245,0.08)}
+        .lang-switch{position:fixed;top:16px;right:16px;z-index:100;background:var(--surface2);border-radius:30px;padding:6px 12px;color:white;cursor:pointer;border:1px solid var(--border)}
+        .nickname-input{width:100%;padding:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:30px;color:white;text-align:center}
+        .tts-toggle{background:var(--surface2);border:1px solid var(--border);border-radius:50px;padding:8px 16px;color:white;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;gap:6px}
+        .loading-dots{display:flex;gap:8px;justify-content:center;margin:30px 0}
+        .loading-dots span{width:12px;height:12px;border-radius:50%;background:var(--accent);animation:dotBounce 1.4s infinite ease-in-out}
+        .loading-dots span:nth-child(2){animation-delay:0.2s;background:var(--accent2)}
+        .loading-dots span:nth-child(3){animation-delay:0.4s;background:var(--accent3)}
+        @keyframes dotBounce{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1.3);opacity:1}}
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="lang-switch" id="lang-switch" onclick="toggleLang()">🌐 EN</div>
+
+    <div class="screen active" id="screen-home">
+        <div style="text-align:center;padding:40px 0">
+            <h1>Ideology Spectrum</h1>
+            <p class="subtitle" id="subtitle-home">Политико-идеологический анализ</p>
+            <p id="desc-home" style="color:var(--text2);max-width:480px;margin:0 auto 20px">Глубокий тест из 175 вопросов (быстрый — 45). Определи свой профиль по 14 осям и 40+ идеологиям.</p>
+            <div class="card" style="max-width:460px;margin:0 auto">
+                <input type="text" class="nickname-input" id="nickname-field" placeholder="Псевдоним" maxlength="30">
+                <div style="margin-top:16px">
+                    <button class="btn accent" onclick="startFullTest()" style="width:100%">▶ Полный тест (175)</button>
+                    <button class="btn accent2" onclick="startQuickTest()" style="width:100%;margin-top:8px">⚡ Быстрый тест (45)</button>
+                    <button class="btn small" id="btn-resume" onclick="resumeTest()" style="margin-top:8px;display:none;width:100%">📂 Продолжить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-test">
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <span id="q-progress-text" style="color:var(--text2)">Вопрос 1/175</span>
+                <span id="test-mode-badge" style="color:var(--accent);font-weight:600"></span>
+                <span style="color:var(--accent3)">Завершено: <span id="q-pct">0</span>%</span>
+                <button class="tts-toggle" id="tts-toggle" onclick="toggleTTS()">🔊</button>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+            <p class="question-text" id="question-text"></p>
+            <div class="options-grid" id="options-container"></div>
+            <div style="display:flex;justify-content:space-between;margin-top:20px">
+                <button class="btn small" id="btn-prev" onclick="prevQuestion()" disabled>← Назад</button>
+                <button class="btn small accent" id="btn-next" onclick="nextQuestion()" disabled>Далее →</button>
+            </div>
+            <button class="btn small" style="width:100%;margin-top:8px" onclick="saveAndExit()">💾 Сохранить и выйти</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-loading">
+        <div class="card" style="text-align:center;padding:50px 30px">
+            <h2>Анализируем ответы…</h2>
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+            <p style="color:var(--text2)">Вычисляем профиль, моральные основания, ближайшие идеологии…</p>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-results">
+        <div class="card" id="export-target">
+            <div style="text-align:center;padding:30px 20px">
+                <div class="ideology-badge" id="main-ideology">—</div>
+                <p style="margin-top:8px">Совпадение: <span class="match-percent" id="main-match">0%</span></p>
+                <p id="nickname-display" style="color:var(--accent2)"></p>
+                <p>Радикальность: <strong id="radical-level">—</strong></p>
+                <div class="radical-meter" id="radical-meter"></div>
+                <div id="archetype-box" style="background:rgba(255,255,255,0.03);padding:12px;border-radius:12px;margin-top:12px">
+                    <span id="archetype-name" style="font-weight:700;color:var(--accent2)"></span>
+                    <p id="archetype-desc" style="font-size:0.9rem;color:var(--text2)"></p>
+                </div>
+            </div>
+            <div class="chart-container"><canvas id="radarChart"></canvas></div>
+            <div class="chart-container"><canvas id="compassCanvas" width="400" height="400" style="display:block;margin:0 auto"></canvas></div>
+            <h3>Топ-5 идеологий</h3>
+            <div class="ideology-list custom-scroll" id="top-ideologies"></div>
+            <div class="chart-container" style="margin-top:16px"><canvas id="barChart"></canvas></div>
+            <div class="chart-container" style="margin-top:16px"><canvas id="moralChart"></canvas></div>
+            <p style="text-align:center;color:var(--text2);margin-top:16px" id="analysis-text"></p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px">
+            <button class="btn accent" onclick="showDetail()">📊 Подробно</button>
+            <button class="btn accent2" onclick="showAnswers()">📋 Ответы</button>
+            <button class="btn accent2" onclick="startSparring()">⚔️ Спарринг</button>
+            <button class="btn" onclick="exportPNG()">📷 PNG</button>
+            <button class="btn" onclick="exportPDF()">📄 PDF</button>
+            <button class="btn" onclick="generateShareCard()">📤 Карточка</button>
+            <button class="btn" onclick="restartTest()">🔄 Заново</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-detail">
+        <div class="card">
+            <h2>Профиль по осям</h2>
+            <div class="chart-container"><canvas id="detailRadar"></canvas></div>
+            <div id="all-axes" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.85rem"></div>
+            <h3 style="margin-top:16px">Все идеологии</h3>
+            <div class="ideology-list custom-scroll" id="all-ideologies" style="max-height:400px"></div>
+            <button class="btn" style="margin-top:12px;width:100%" onclick="backToResults()">← Назад</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-answers">
+        <div class="card">
+            <h2>Ваши ответы</h2>
+            <div id="answers-list" style="max-height:60vh;overflow-y:auto;font-size:0.9rem"></div>
+            <button class="btn" style="margin-top:12px;width:100%" onclick="backToResults()">← Назад</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-sparring">
+        <div class="card">
+            <h2>⚔️ Дискуссионный спарринг</h2>
+            <p id="sparring-intro"></p>
+            <div id="sparring-arguments" style="margin:16px 0"></div>
+            <button class="btn" onclick="backToResults()">← Назад к результатам</button>
+        </div>
+    </div>
+</div>
+<div id="share-card-container" style="position:absolute;left:-9999px"></div>
+
+<script>
+// ==================== 175 ВОПРОСОВ (ПОЛНЫЙ НАБОР) ====================
+const questions = [
+  { id:1, text:'Частная собственность на средства производства должна быть основой экономики.', textEn:'Private ownership of the means of production should be the foundation of the economy.', axes:{sc:2,ci:1.5}, moral:{care:-0.2,fairness:0.2,liberty:1.5}, rad:0.1 },
+  { id:2, text:'Государство должно контролировать ключевые отрасли промышленности.', textEn:'The state should control key industries.', axes:{sc:-1.8,al:1,ci:-0.8}, moral:{care:0.8,fairness:0.6,authority:0.7,liberty:-0.5}, rad:0.2 },
+  { id:3, text:'Свобода слова должна быть абсолютной, даже для оскорбительных высказываний.', textEn:'Freedom of speech must be absolute, even for offensive statements.', axes:{al:-1.5,pc:1,dr:1.2}, moral:{liberty:1.8,authority:-1}, rad:0.3 },
+  { id:4, text:'Традиционные семейные ценности — фундамент здорового общества.', textEn:'Traditional family values are the foundation of a healthy society.', axes:{pc:-1.8,sc:0.5,rl:0.8}, moral:{loyalty:1.2,authority:0.8,purity:1.3,liberty:-0.3}, rad:0.1 },
+  { id:5, text:'Иммиграция должна быть строго ограничена для сохранения национальной идентичности.', textEn:'Immigration must be strictly limited to preserve national identity.', axes:{in_na:1.5,gl:1.2,pc:-0.8}, moral:{loyalty:1.5,authority:0.6,purity:0.8,liberty:-0.5}, rad:0.3 },
+  { id:6, text:'Глобальное сотрудничество важнее национального суверенитета.', textEn:'Global cooperation is more important than national sovereignty.', axes:{in_na:-1.8,gl:-1.5,al:0.5}, moral:{care:1.2,fairness:0.8,loyalty:-1,authority:-0.5,liberty:0.3}, rad:0.1 },
+  { id:7, text:'Вооружённые силы должны получать щедрое финансирование.', textEn:'The military should receive generous funding.', axes:{pm:1.5,al:0.8,sc:0.3}, moral:{loyalty:1.3,authority:1,care:0,liberty:0}, rad:0.4 },
+  { id:8, text:'Войны никогда не могут быть оправданы.', textEn:'Wars can never be justified.', axes:{pm:-2,rd:-0.5,al:-0.3}, moral:{care:1.5,fairness:0.5,loyalty:-0.5,authority:-0.8,liberty:0.2}, rad:0.2 },
+  { id:9, text:'Прогрессивное налогообложение необходимо для социальной справедливости.', textEn:'Progressive taxation is necessary for social justice.', axes:{sc:-1.5,ci:-1,dr:0.5}, moral:{care:1.3,fairness:1.2,authority:0.3,liberty:-0.4}, rad:0.1 },
+  { id:10, text:'Налоги должны быть минимальными — люди сами распорядятся своими деньгами.', textEn:'Taxes should be minimal — people will manage their own money.', axes:{sc:1.8,ci:1.5,dr:-0.5}, moral:{care:-0.2,fairness:0.2,authority:-0.5,liberty:1.4}, rad:0.2 },
+  { id:11, text:'Смертная казнь — допустимая мера наказания за особо тяжкие преступления.', textEn:'The death penalty is an acceptable punishment for particularly serious crimes.', axes:{al:1.2,pc:-0.8,rd:0.5}, moral:{care:-1,fairness:0.8,loyalty:0.5,authority:1.2,purity:0.5,liberty:0}, rad:0.5 },
+  { id:12, text:'Государство не должно вмешиваться в личную жизнь граждан.', textEn:'The state should not interfere in the private lives of citizens.', axes:{al:-1.8,dr:0.8,pc:0.5}, moral:{authority:-1.5,liberty:1.8}, rad:0.1 },
+  { id:13, text:'Религия должна играть важную роль в законодательстве.', textEn:'Religion should play an important role in legislation.', axes:{sr:1.5,pc:-1.2,al:0.8}, moral:{loyalty:1,authority:1.3,purity:1.2,liberty:-0.8}, rad:0.3 },
+  { id:14, text:'Церковь должна быть полностью отделена от государства.', textEn:'Church should be completely separated from the state.', axes:{sr:-2,pc:0.8,dr:0.3}, moral:{fairness:0.5,authority:-0.5,purity:-0.5,liberty:1}, rad:0.1 },
+  { id:15, text:'Экологические ограничения важнее экономического роста.', textEn:'Environmental restrictions are more important than economic growth.', axes:{ei:-1.8,sc:-0.5,rd:0.3}, moral:{care:1.4,fairness:0.5,purity:1,liberty:-0.3}, rad:0.2 },
+  { id:16, text:'Технологический прогресс решит большинство проблем человечества.', textEn:'Technological progress will solve most of humanity\'s problems.', axes:{tp:1.8,ei:0.8,sc:0.3}, moral:{care:0.8,fairness:0.2,authority:0.4,liberty:1}, rad:0.1 },
+  { id:17, text:'Общество должно вернуться к простой жизни без сложных технологий.', textEn:'Society should return to a simple life without complex technology.', axes:{tp:-2,ei:-0.5,rd:0.6}, moral:{care:0.3,loyalty:0.5,authority:0.3,purity:1.2,liberty:-0.8}, rad:0.5 },
+  { id:18, text:'Революция — приемлемый метод смены несправедливой власти.', textEn:'Revolution is an acceptable method to change unjust power.', axes:{rr:1.8,rd:1,al:0.5}, moral:{fairness:1,loyalty:-1,authority:-1.5,liberty:1}, rad:0.7 },
+  { id:19, text:'Постепенные реформы эффективнее резких перемен.', textEn:'Gradual reforms are more effective than abrupt changes.', axes:{rr:-2,rd:-0.8,pc:0.5}, moral:{care:0.5,fairness:0.3,loyalty:0.5,authority:0.6,liberty:-0.2}, rad:0.1 },
+  { id:20, text:'Власть должна быть максимально децентрализована.', textEn:'Power should be maximally decentralized.', axes:{cd:-1.8,al:-1,dr:0.5}, moral:{fairness:0.3,loyalty:-0.5,authority:-1.5,liberty:1.5}, rad:0.3 },
+  { id:21, text:'Сильное центральное правительство необходимо для стабильности.', textEn:'A strong central government is necessary for stability.', axes:{cd:1.8,al:1,dr:-0.5}, moral:{care:0.2,loyalty:1,authority:1.5,purity:0.3,liberty:-1}, rad:0.2 },
+  { id:22, text:'Коллективные интересы важнее индивидуальных прав.', textEn:'Collective interests outweigh individual rights.', axes:{ci:-1.5,sc:-0.8,al:0.5}, moral:{care:0.8,fairness:0.5,loyalty:1.2,authority:0.5,liberty:-1.3}, rad:0.4 },
+  { id:23, text:'Личная свобода — высшая ценность, даже в ущерб равенству.', textEn:'Personal freedom is the highest value, even at the expense of equality.', axes:{ci:1.8,sc:1.2,al:-1}, moral:{care:-0.3,fairness:-0.2,authority:-0.8,liberty:1.8}, rad:0.2 },
+  { id:24, text:'Профсоюзы должны обладать широкими полномочиями.', textEn:'Trade unions should have broad powers.', axes:{sc:-1.5,ci:-0.8,dr:0.5}, moral:{care:1,fairness:1.2,loyalty:0.8,authority:0.2,liberty:0.1}, rad:0.3 },
+  { id:25, text:'Рыночная конкуренция — лучший регулятор экономики.', textEn:'Market competition is the best regulator of the economy.', axes:{sc:2,ci:1.2,dr:-0.3}, moral:{fairness:0.3,authority:-0.5,liberty:1.5}, rad:0.1 },
+  { id:26, text:'Бесплатное здравоохранение — право каждого человека.', textEn:'Free healthcare is a right of every person.', axes:{sc:-1.5,ci:-1,dr:0.5}, moral:{care:1.5,fairness:1,loyalty:0.3,authority:0.3}, rad:0.1 },
+  { id:27, text:'Образование должно быть полностью приватизировано.', textEn:'Education should be fully privatized.', axes:{sc:1.5,ci:1,dr:-0.5}, moral:{care:-0.5,authority:-0.5,liberty:1}, rad:0.2 },
+  { id:28, text:'Государство должно обеспечивать базовый доход каждому гражданину.', textEn:'The state should provide a basic income to every citizen.', axes:{sc:-1.8,ci:-1.2,dr:0.3}, moral:{care:1.4,fairness:0.8,authority:0.5,liberty:-0.3}, rad:0.2 },
+  { id:29, text:'Культурное разнообразие обогащает нацию.', textEn:'Cultural diversity enriches the nation.', axes:{in_na:-1.2,pc:1,gl:-0.8}, moral:{care:0.5,fairness:0.8,loyalty:-0.5,authority:-0.3,purity:-0.3,liberty:0.5}, rad:0.1 },
+  { id:30, text:'Национальная культура должна быть защищена от иностранного влияния.', textEn:'National culture must be protected from foreign influence.', axes:{in_na:1.5,gl:1,pc:-0.8}, moral:{loyalty:1.5,authority:0.8,purity:1,liberty:-0.8}, rad:0.3 },
+  { id:31, text:'Прямая демократия предпочтительнее представительной.', textEn:'Direct democracy is preferable to representative democracy.', axes:{dr:1.5,al:-0.8,cd:-0.5}, moral:{fairness:1.2,authority:-1,liberty:1.2}, rad:0.2 },
+  { id:32, text:'Эксперты-технократы должны управлять страной.', textEn:'Technocratic experts should run the country.', axes:{tp:1.5,dr:-1,al:0.8}, moral:{fairness:0.2,loyalty:0.5,authority:1.3,liberty:-0.5}, rad:0.4 },
+  { id:33, text:'Ограничение рождаемости необходимо для спасения планеты.', textEn:'Birth control is necessary to save the planet.', axes:{ei:-1.2,al:1.5,pc:0.5}, moral:{care:1,fairness:0.2,authority:1,purity:-0.5,liberty:-1}, rad:0.6 },
+  { id:34, text:'Каждый должен иметь право владеть оружием.', textEn:'Everyone should have the right to own weapons.', axes:{al:-1.5,pc:0.5,rd:0.3}, moral:{care:-0.5,authority:-0.8,liberty:1.5}, rad:0.3 },
+  { id:35, text:'Государство должно контролировать СМИ.', textEn:'The state should control the media.', axes:{al:1.8,dr:-1,pc:-0.5}, moral:{loyalty:0.5,authority:1.5,purity:0.3,liberty:-1.5}, rad:0.5 },
+  { id:36, text:'Свободный рынок СМИ обеспечивает объективность.', textEn:'A free media market ensures objectivity.', axes:{al:-1.5,sc:0.8,dr:0.5}, moral:{fairness:0.5,authority:-0.5,liberty:1.3}, rad:0.1 },
+  { id:37, text:'Национализация природных ресурсов — обязанность государства.', textEn:'Nationalization of natural resources is a duty of the state.', axes:{sc:-1.8,in_na:0.5,al:0.8}, moral:{care:0.5,fairness:0.6,loyalty:0.8,authority:1,liberty:-0.8}, rad:0.3 },
+  { id:38, text:'Природные ресурсы должны принадлежать частным компаниям.', textEn:'Natural resources should belong to private companies.', axes:{sc:1.8,ci:1.2,al:-0.3}, moral:{liberty:1.2}, rad:0.1 },
+  { id:39, text:'Политическая корректность — ограничение свободы.', textEn:'Political correctness limits freedom.', axes:{pc:-1.2,al:-0.8,dr:0.3}, moral:{care:-0.3,fairness:-0.2,authority:0.3,purity:0.5,liberty:1}, rad:0.2 },
+  { id:40, text:'Язык вражды должен преследоваться по закону.', textEn:'Hate speech must be prosecuted by law.', axes:{pc:1.2,al:0.5,dr:0.2}, moral:{care:1,fairness:0.5,authority:0.5,purity:0.3,liberty:-0.5}, rad:0.1 },
+  { id:41, text:'Глобализация приносит больше пользы, чем вреда.', textEn:'Globalization brings more benefits than harm.', axes:{gl:-1.8,sc:0.5,in_na:-1.0}, moral:{care:0.5,fairness:0.8,loyalty:-0.5,authority:-0.3,liberty:0.8}, rad:0.1 },
+  { id:42, text:'Протекционизм защищает национальную экономику.', textEn:'Protectionism protects the national economy.', axes:{gl:1.5,in_na:1.2,sc:-0.3}, moral:{care:0.2,loyalty:1.2,authority:0.8,liberty:-0.3}, rad:0.2 },
+  { id:43, text:'Монархия — достойная форма правления.', textEn:'Monarchy is a worthy form of government.', axes:{dr:-1.5,pc:-1.0,al:1.0}, moral:{loyalty:1.5,authority:1.5,purity:0.8,liberty:-1.5}, rad:0.3 },
+  { id:44, text:'Республика — единственно приемлемая форма правления.', textEn:'Republic is the only acceptable form of government.', axes:{dr:1.5,pc:0.5,al:-0.5}, moral:{fairness:1.0,authority:-0.5,liberty:1.0}, rad:0.1 },
+  { id:45, text:'Легализация лёгких наркотиков снизит преступность.', textEn:'Legalization of light drugs would reduce crime.', axes:{al:-1.5,pc:1.0,dr:0.3}, moral:{care:0.3,fairness:0.2,authority:-1.0,purity:-0.8,liberty:1.2}, rad:0.2 },
+  { id:46, text:'Наркотики должны оставаться под запретом.', textEn:'Drugs should remain prohibited.', axes:{al:1.2,pc:-0.8,dr:0.1}, moral:{care:0.5,loyalty:0.5,authority:1.0,purity:1.0,liberty:-0.8}, rad:0.2 },
+  { id:47, text:'Атомная энергия — необходимый источник энергии.', textEn:'Nuclear energy is a necessary energy source.', axes:{ei:1.0,tp:1.2,sc:0.5}, moral:{authority:0.5,purity:-0.5,liberty:0.5}, rad:0.1 },
+  { id:48, text:'Ядерное оружие должно быть полностью ликвидировано.', textEn:'Nuclear weapons should be completely eliminated.', axes:{pm:-1.5,ei:-0.5,al:-0.3}, moral:{care:1.4,fairness:0.5,authority:-0.5,purity:0.3}, rad:0.2 },
+  { id:49, text:'Свободная торговля выгодна всем странам.', textEn:'Free trade benefits all countries.', axes:{gl:-1.5,sc:1.0,in_na:-0.8}, moral:{fairness:0.8,authority:-0.5,liberty:1.2}, rad:0.1 },
+  { id:50, text:'Государство должно поддерживать убыточные, но стратегические предприятия.', textEn:'The state should support unprofitable but strategic enterprises.', axes:{sc:-1.2,al:0.8,ci:-0.5}, moral:{care:0.5,fairness:0.3,loyalty:0.8,authority:1.0,liberty:-0.3}, rad:0.2 },
+  { id:51, text:'Приватизация госсобственности повышает эффективность.', textEn:'Privatization of state property increases efficiency.', axes:{sc:1.8,ci:1.0,al:-0.5}, moral:{fairness:0.2,authority:-0.3,liberty:1.3}, rad:0.1 },
+  { id:52, text:'Ограничения на въезд — дискриминация.', textEn:'Entry restrictions are discrimination.', axes:{in_na:-1.8,gl:-1.0,pc:1.0}, moral:{care:1.0,fairness:1.2,loyalty:-1.0,authority:-0.8,liberty:0.8}, rad:0.2 },
+  { id:53, text:'Армия должна комплектоваться только на контрактной основе.', textEn:'The army should be composed only of contract soldiers.', axes:{pm:0.5,al:-0.8,sc:0.3}, moral:{authority:-0.5,liberty:1.0}, rad:0.1 },
+  { id:54, text:'Всеобщая воинская обязанность укрепляет общество.', textEn:'Universal conscription strengthens society.', axes:{pm:1.2,ci:-1.0,al:0.5}, moral:{fairness:0.2,loyalty:1.2,authority:1.0,purity:0.3,liberty:-0.8}, rad:0.3 },
+  { id:55, text:'Права меньшинств должны быть защищены в первую очередь.', textEn:'Minority rights must be protected first.', axes:{pc:1.5,dr:0.8,ci:-0.3}, moral:{care:1.3,fairness:1.2,authority:-0.3,liberty:0.5}, rad:0.1 },
+  { id:56, text:'Большинство не должно страдать ради меньшинства.', textEn:'The majority should not suffer for the minority.', axes:{pc:-1.2,ci:0.5,in_na:0.8}, moral:{fairness:-0.3,loyalty:0.8,authority:0.5,liberty:-0.2}, rad:0.2 },
+  { id:57, text:'Цензура в интернете недопустима.', textEn:'Internet censorship is unacceptable.', axes:{al:-1.8,dr:0.8,pc:0.5}, moral:{fairness:0.5,authority:-1.5,liberty:1.8}, rad:0.2 },
+  { id:58, text:'Интернет нуждается в государственном регулировании.', textEn:'The internet needs state regulation.', axes:{al:1.5,dr:-0.5,pc:-0.3}, moral:{care:0.3,loyalty:0.5,authority:1.5,purity:0.5,liberty:-1.2}, rad:0.3 },
+  { id:59, text:'Границы между странами должны быть упразднены.', textEn:'Borders between countries should be abolished.', axes:{in_na:-2.0,gl:-2.0,al:-0.5}, moral:{care:1.2,fairness:1.0,loyalty:-1.5,authority:-1.5,liberty:1.0}, rad:0.5 },
+  { id:60, text:'Суверенитет страны неприкосновенен.', textEn:'National sovereignty is inviolable.', axes:{in_na:2.0,gl:1.5,al:0.5}, moral:{loyalty:1.8,authority:1.2,purity:0.5,liberty:-0.5}, rad:0.2 },
+  { id:61, text:'Социальное неравенство — естественный порядок вещей.', textEn:'Social inequality is the natural order of things.', axes:{sc:1.5,ci:1.2,rr:-0.8}, moral:{care:-0.8,fairness:-1.0,authority:0.5,liberty:1.0}, rad:0.2 },
+  { id:62, text:'Общество должно стремиться к полному равенству.', textEn:'Society should strive for complete equality.', axes:{sc:-2.0,ci:-1.5,rr:0.8}, moral:{care:1.5,fairness:1.5,loyalty:0.3,authority:0.5,liberty:-0.5}, rad:0.4 },
+  { id:63, text:'Частные тюрьмы эффективнее государственных.', textEn:'Private prisons are more efficient than state ones.', axes:{sc:1.2,al:-0.5,dr:-0.3}, moral:{care:-0.5,fairness:-0.3,authority:-0.3,liberty:1.0}, rad:0.1 },
+  { id:64, text:'Пенитенциарная система должна быть полностью государственной.', textEn:'The penitentiary system should be fully state-run.', axes:{sc:-0.8,al:0.5,dr:0.3}, moral:{care:0.3,fairness:0.5,loyalty:0.5,authority:0.8,liberty:-0.3}, rad:0.1 },
+  { id:65, text:'Научный прогресс не должен иметь этических ограничений.', textEn:'Scientific progress should have no ethical limits.', axes:{tp:1.8,pc:-0.8,sr:-0.5}, moral:{care:-0.3,authority:-0.5,purity:-1.0,liberty:1.5}, rad:0.4 },
+  { id:66, text:'Этические нормы важнее научных открытий.', textEn:'Ethical norms are more important than scientific discoveries.', axes:{tp:-1.2,pc:1.0,sr:0.8}, moral:{care:1.0,fairness:0.5,loyalty:0.3,authority:0.5,purity:1.0,liberty:-0.5}, rad:0.1 },
+  { id:67, text:'Государство должно субсидировать возобновляемую энергию.', textEn:'The state should subsidize renewable energy.', axes:{ei:-1.5,sc:-0.8,tp:0.3}, moral:{care:1.2,fairness:0.5,authority:0.5,purity:0.5,liberty:-0.2}, rad:0.1 },
+  { id:68, text:'Рынок сам определит оптимальные источники энергии.', textEn:'The market will determine the optimal energy sources.', axes:{ei:1.0,sc:1.2,tp:0.5}, moral:{fairness:0.2,authority:-0.5,liberty:1.3}, rad:0.1 },
+  { id:69, text:'Федеративное устройство лучше унитарного.', textEn:'A federal system is better than a unitary one.', axes:{cd:-1.8,al:-0.5,dr:0.5}, moral:{fairness:0.5,loyalty:-0.5,authority:-1.0,liberty:1.2}, rad:0.2 },
+  { id:70, text:'Унитарное государство эффективнее.', textEn:'A unitary state is more efficient.', axes:{cd:1.5,al:0.5,dr:-0.3}, moral:{loyalty:1.0,authority:1.2,purity:0.3,liberty:-0.8}, rad:0.1 },
+  { id:71, text:'Право на отделение должно быть у каждого региона.', textEn:'Every region should have the right to secession.', axes:{cd:-2.0,al:-1.2,in_na:-0.8}, moral:{fairness:0.8,loyalty:-1.2,authority:-1.5,liberty:1.5}, rad:0.5 },
+  { id:72, text:'Территориальная целостность страны священна.', textEn:'The territorial integrity of a country is sacred.', axes:{cd:1.8,in_na:1.5,al:0.8}, moral:{loyalty:1.8,authority:1.5,purity:0.5,liberty:-1.0}, rad:0.3 },
+  { id:73, text:'Религиозное образование должно финансироваться государством.', textEn:'Religious education should be funded by the state.', axes:{sr:1.8,pc:-0.8,sc:-0.3}, moral:{care:0.3,loyalty:1.0,authority:1.2,purity:1.0,liberty:-0.5}, rad:0.2 },
+  { id:74, text:'Школы должны быть светскими.', textEn:'Schools should be secular.', axes:{sr:-1.8,pc:0.8,dr:0.3}, moral:{fairness:0.5,authority:-0.5,purity:-0.5,liberty:1.0}, rad:0.1 },
+  { id:75, text:'Искусственный интеллект должен регулироваться на глобальном уровне.', textEn:'Artificial intelligence should be regulated at a global level.', axes:{tp:1.2,gl:-1.0,al:0.5}, moral:{care:0.5,fairness:0.5,authority:0.8,liberty:-0.5}, rad:0.1 },
+  { id:76, text:'Развитие ИИ не должно сдерживаться.', textEn:'AI development should not be restrained.', axes:{tp:1.8,al:-1.0,sc:0.8}, moral:{authority:-0.8,purity:-0.5,liberty:1.5}, rad:0.3 },
+  { id:77, text:'Традиционная медицина заслуживает государственной поддержки.', textEn:'Traditional medicine deserves state support.', axes:{tp:-0.8,sr:0.8,pc:-0.5}, moral:{care:0.5,loyalty:0.5,authority:0.5,purity:0.8,liberty:-0.2}, rad:0.1 },
+  { id:78, text:'Только доказательная медицина должна финансироваться.', textEn:'Only evidence-based medicine should be funded.', axes:{tp:1.0,sr:-0.8,sc:0.3}, moral:{fairness:0.5,authority:0.3,purity:-0.5,liberty:0.8}, rad:0.1 },
+  { id:79, text:'Корпорации должны платить минимальные налоги.', textEn:'Corporations should pay minimal taxes.', axes:{sc:1.8,ci:1.5,dr:-0.5}, moral:{care:-0.5,fairness:-0.3,authority:-0.5,liberty:1.5}, rad:0.2 },
+  { id:80, text:'Корпорации обязаны нести высокую налоговую нагрузку.', textEn:'Corporations must bear a high tax burden.', axes:{sc:-1.8,ci:-1.2,dr:0.5}, moral:{care:1.0,fairness:1.2,authority:0.5,liberty:-0.8}, rad:0.2 },
+  { id:81, text:'Свобода собраний должна быть неограниченной.', textEn:'Freedom of assembly should be unlimited.', axes:{al:-1.8,dr:1.0,pc:0.5}, moral:{fairness:0.5,authority:-1.5,liberty:1.8}, rad:0.2 },
+  { id:82, text:'Митинги требуют разрешения властей.', textEn:'Rallies require permission from the authorities.', axes:{al:1.5,dr:-0.8,pc:-0.3}, moral:{loyalty:1.0,authority:1.5,purity:0.3,liberty:-1.2}, rad:0.3 },
+  { id:83, text:'Патриотизм — устаревшее понятие.', textEn:'Patriotism is an outdated concept.', axes:{in_na:-1.5,gl:-0.8,pc:0.8}, moral:{loyalty:-1.5,authority:-0.8,purity:-0.5,liberty:0.8}, rad:0.2 },
+  { id:84, text:'Любовь к родине — долг каждого гражданина.', textEn:'Love for the motherland is the duty of every citizen.', axes:{in_na:1.8,gl:0.8,pc:-0.5}, moral:{loyalty:1.8,authority:1.0,purity:0.8,liberty:-0.3}, rad:0.2 },
+  { id:85, text:'Эвтаназия должна быть легализована.', textEn:'Euthanasia should be legalized.', axes:{pc:1.2,al:-1.0,sr:-0.8}, moral:{care:0.8,fairness:0.3,authority:-1.0,purity:-0.5,liberty:1.3}, rad:0.2 },
+  { id:86, text:'Жизнь священна при любых обстоятельствах.', textEn:'Life is sacred under any circumstances.', axes:{pc:-1.5,sr:1.2,al:0.5}, moral:{care:1.2,loyalty:0.5,authority:0.8,purity:1.0,liberty:-0.5}, rad:0.1 },
+  { id:87, text:'Государство должно контролировать цены на базовые продукты.', textEn:'The state should control prices of basic goods.', axes:{sc:-1.5,al:1.0,ci:-0.8}, moral:{care:1.0,fairness:0.8,loyalty:0.5,authority:1.0,liberty:-0.8}, rad:0.2 },
+  { id:88, text:'Цены должен определять рынок.', textEn:'Prices should be determined by the market.', axes:{sc:1.8,al:-0.8,ci:1.0}, moral:{fairness:0.2,authority:-0.5,liberty:1.5}, rad:0.1 },
+  { id:89, text:'Протекционистские пошлины вредят экономике.', textEn:'Protectionist tariffs harm the economy.', axes:{gl:-1.5,sc:0.8,in_na:-1.0}, moral:{fairness:0.5,authority:-0.5,liberty:1.2}, rad:0.1 },
+  { id:90, text:'Таможенные пошлины защищают рабочие места.', textEn:'Customs duties protect jobs.', axes:{gl:1.5,in_na:1.2,sc:-0.5}, moral:{care:0.5,fairness:0.3,loyalty:1.0,authority:0.8,liberty:-0.5}, rad:0.2 },
+  { id:91, text:'ООН должна иметь больше власти.', textEn:'The UN should have more power.', axes:{gl:-1.8,in_na:-1.2,al:0.3}, moral:{care:1.0,fairness:1.0,loyalty:-0.8,authority:0.5,liberty:-0.2}, rad:0.1 },
+  { id:92, text:'Международные организации угрожают суверенитету.', textEn:'International organizations threaten sovereignty.', axes:{gl:1.5,in_na:1.8,al:-0.3}, moral:{loyalty:1.5,authority:1.0,purity:0.3,liberty:-0.5}, rad:0.2 },
+  { id:93, text:'Право на забвение в интернете необходимо.', textEn:'The right to be forgotten on the internet is necessary.', axes:{al:0.5,pc:0.8,dr:0.3}, moral:{care:0.5,fairness:0.3,authority:0.3,purity:0.5,liberty:-0.3}, rad:0.1 },
+  { id:94, text:'Информация должна быть свободной и вечной.', textEn:'Information should be free and eternal.', axes:{al:-1.2,pc:-0.5,tp:0.8}, moral:{fairness:0.5,authority:-0.8,liberty:1.5}, rad:0.1 },
+  { id:95, text:'Государство должно поддерживать традиционные ремёсла.', textEn:'The state should support traditional crafts.', axes:{tp:-1.0,pc:-0.8,ei:-0.5}, moral:{care:0.3,loyalty:1.0,authority:0.5,purity:1.0,liberty:-0.3}, rad:0.1 },
+  { id:96, text:'Поддержка неэффективных отраслей — пустая трата денег.', textEn:'Supporting inefficient industries is a waste of money.', axes:{tp:1.0,sc:1.2,ei:0.5}, moral:{fairness:0.2,authority:-0.5,liberty:1.3}, rad:0.1 },
+  { id:97, text:'Радикальные перемены необходимы для справедливости.', textEn:'Radical changes are necessary for justice.', axes:{rr:2.0,rd:1.2,sc:-0.8}, moral:{care:0.5,fairness:1.5,loyalty:-1.0,authority:-1.5,liberty:1.0}, rad:0.7 },
+  { id:98, text:'Стабильность важнее любых реформ.', textEn:'Stability is more important than any reforms.', axes:{rr:-2.0,rd:-1.0,pc:-1.2}, moral:{loyalty:1.5,authority:1.5,purity:0.8,liberty:-1.2}, rad:0.1 },
+  { id:99, text:'Коллективизация сельского хозяйства эффективна.', textEn:'Collectivization of agriculture is effective.', axes:{sc:-1.8,ci:-1.5,al:0.8}, moral:{care:0.5,fairness:0.5,loyalty:0.8,authority:1.2,liberty:-1.0}, rad:0.5 },
+  { id:100, text:'Фермеры должны быть частными собственниками.', textEn:'Farmers should be private owners.', axes:{sc:1.5,ci:1.2,al:-0.5}, moral:{fairness:0.3,authority:-0.5,liberty:1.5}, rad:0.1 },
+  { id:101, text:'Свободный доступ к информации — угроза безопасности.', textEn:'Free access to information is a security threat.', axes:{al:1.5,dr:-0.8,tp:-0.5}, moral:{loyalty:1.2,authority:1.5,purity:0.3,liberty:-1.5}, rad:0.4 },
+  { id:102, text:'Прозрачность власти — основа демократии.', textEn:'Transparency of power is the foundation of democracy.', axes:{al:-1.5,dr:1.2,tp:0.3}, moral:{fairness:1.2,authority:-1.0,liberty:1.3}, rad:0.1 },
+  { id:103, text:'Культурная апроприация — реальная проблема.', textEn:'Cultural appropriation is a real problem.', axes:{pc:1.2,in_na:-0.8,gl:-0.5}, moral:{care:1.0,fairness:0.8,loyalty:-0.3,authority:0.3,purity:0.5,liberty:-0.3}, rad:0.1 },
+  { id:104, text:'Культуры должны свободно обмениваться элементами.', textEn:'Cultures should freely exchange elements.', axes:{pc:-0.8,in_na:0.5,gl:0.3}, moral:{fairness:0.3,loyalty:-0.5,authority:-0.5,purity:-0.5,liberty:1.2}, rad:0.1 },
+  { id:105, text:'Государственный долг должен быть минимизирован любой ценой.', textEn:'Government debt must be minimized at any cost.', axes:{sc:1.2,al:0.5,rr:-0.5}, moral:{loyalty:0.5,authority:0.8,purity:0.3,liberty:-0.3}, rad:0.2 },
+  { id:106, text:'Госдолг — нормальный инструмент развития.', textEn:'Government debt is a normal development tool.', axes:{sc:-0.8,al:-0.3,rr:0.3}, moral:{care:0.3,fairness:0.3,authority:-0.3,liberty:0.5}, rad:0.1 },
+  { id:107, text:'Золотой стандарт валюты предпочтительнее.', textEn:'The gold standard is preferable.', axes:{sc:1.5,gl:1.0,tp:-0.5}, moral:{loyalty:0.5,authority:0.8,purity:0.5,liberty:-0.2}, rad:0.2 },
+  { id:108, text:'Фиатные деньги — достижение современной экономики.', textEn:'Fiat money is an achievement of the modern economy.', axes:{sc:-0.5,gl:-0.8,tp:0.8}, moral:{fairness:0.3,authority:0.3,liberty:0.8}, rad:0.1 },
+  { id:109, text:'Право на труд должно быть конституционно закреплено.', textEn:'The right to work should be constitutionally guaranteed.', axes:{sc:-1.5,ci:-1.0,al:0.5}, moral:{care:0.8,fairness:0.8,loyalty:0.5,authority:0.5,liberty:-0.5}, rad:0.2 },
+  { id:110, text:'Рынок труда должен быть полностью свободным.', textEn:'The labour market should be completely free.', axes:{sc:1.8,ci:1.2,al:-0.8}, moral:{care:-0.3,authority:-0.5,liberty:1.8}, rad:0.2 },
+  { id:111, text:'Общественный транспорт должен быть бесплатным.', textEn:'Public transport should be free.', axes:{sc:-1.2,ci:-0.8,ei:-0.5}, moral:{care:1.0,fairness:0.8,authority:0.3,liberty:-0.3}, rad:0.1 },
+  { id:112, text:'Транспорт — сфера бизнеса.', textEn:'Transport is a business.', axes:{sc:1.2,ci:0.8,ei:0.3}, moral:{fairness:0.2,authority:-0.3,liberty:1.2}, rad:0.1 },
+  { id:113, text:'Национальная валюта должна быть обеспечена ресурсами.', textEn:'The national currency should be backed by resources.', axes:{sc:0.8,in_na:1.2,gl:0.8}, moral:{loyalty:1.0,authority:0.8,purity:0.5,liberty:-0.3}, rad:0.2 },
+  { id:114, text:'Валютный рынок должен быть свободным.', textEn:'The currency market should be free.', axes:{sc:1.0,gl:-1.2,in_na:-0.8}, moral:{fairness:0.3,authority:-0.5,liberty:1.5}, rad:0.1 },
+  { id:115, text:'Государственная тайна необходима для безопасности.', textEn:'State secrets are necessary for security.', axes:{al:1.5,dr:-1.0,tp:-0.3}, moral:{loyalty:1.5,authority:1.5,purity:0.5,liberty:-1.5}, rad:0.3 },
+  { id:116, text:'Все государственные документы должны быть публичными.', textEn:'All state documents should be public.', axes:{al:-1.8,dr:1.5,tp:0.5}, moral:{fairness:1.2,authority:-1.5,liberty:1.8}, rad:0.2 },
+  { id:117, text:'Социальные сети должны нести ответственность за контент.', textEn:'Social networks should be responsible for content.', axes:{al:0.8,pc:0.5,dr:0.3}, moral:{care:0.8,fairness:0.5,authority:0.8,purity:0.3,liberty:-0.5}, rad:0.1 },
+  { id:118, text:'Платформы не должны цензурировать пользователей.', textEn:'Platforms should not censor users.', axes:{al:-1.2,pc:-0.5,sc:0.5}, moral:{authority:-1.0,liberty:1.5}, rad:0.2 },
+  { id:119, text:'Обязательная вакцинация — нарушение прав.', textEn:'Mandatory vaccination is a violation of rights.', axes:{al:-1.5,tp:-0.8,pc:-0.5}, moral:{care:-0.5,authority:-1.2,purity:0.5,liberty:1.3}, rad:0.3 },
+  { id:120, text:'Государство обязано защищать общественное здоровье.', textEn:'The state is obliged to protect public health.', axes:{al:1.2,ci:-0.8,tp:0.5}, moral:{care:1.3,fairness:0.5,loyalty:0.5,authority:1.0,purity:0.3,liberty:-0.8}, rad:0.1 },
+  { id:121, text:'Локальное самоуправление эффективнее центрального.', textEn:'Local self-government is more effective than central.', axes:{cd:-1.8,al:-0.8,dr:0.5}, moral:{fairness:0.5,loyalty:-0.5,authority:-1.2,liberty:1.3}, rad:0.2 },
+  { id:122, text:'Центральная власть должна доминировать.', textEn:'Central power should dominate.', axes:{cd:1.8,al:0.8,dr:-0.5}, moral:{loyalty:1.0,authority:1.5,purity:0.3,liberty:-1.0}, rad:0.2 },
+  { id:123, text:'Международный суд должен быть выше национальных.', textEn:'International court should be above national ones.', axes:{gl:-1.8,in_na:-1.5,dr:0.3}, moral:{care:0.5,fairness:1.2,loyalty:-1.0,authority:-0.5,liberty:0.3}, rad:0.1 },
+  { id:124, text:'Национальные суды — высшая инстанция.', textEn:'National courts are the highest authority.', axes:{gl:1.5,in_na:1.8,dr:-0.3}, moral:{loyalty:1.5,authority:1.2,purity:0.3,liberty:-0.5}, rad:0.2 },
+  { id:125, text:'Безусловный базовый доход разрушает мотивацию.', textEn:'Unconditional basic income destroys motivation.', axes:{sc:1.2,ci:1.0,rr:-0.5}, moral:{care:-0.5,fairness:-0.3,authority:0.3,purity:0.3,liberty:1.0}, rad:0.2 },
+  { id:126, text:'Базовый доход освобождает людей для творчества.', textEn:'Basic income frees people for creativity.', axes:{sc:-1.5,ci:-1.2,rr:0.3}, moral:{care:1.2,fairness:0.8,authority:0.2,liberty:0.5}, rad:0.2 },
+  { id:127, text:'Ограничение скорости интернета для граждан недопустимо.', textEn:'Internet speed limits for citizens are unacceptable.', axes:{al:-1.5,tp:0.8,dr:0.5}, moral:{fairness:0.5,authority:-1.2,liberty:1.5}, rad:0.2 },
+  { id:128, text:'Государство может регулировать интернет-трафик.', textEn:'The state can regulate internet traffic.', axes:{al:1.2,tp:-0.5,dr:-0.3}, moral:{loyalty:0.5,authority:1.2,purity:0.5,liberty:-1.0}, rad:0.3 },
+  { id:129, text:'Космическая программа — приоритет для человечества.', textEn:'Space program is a priority for humanity.', axes:{tp:1.8,gl:-0.8,sc:0.3}, moral:{care:0.3,authority:0.5,liberty:0.8}, rad:0.1 },
+  { id:130, text:'Проблемы Земли важнее космоса.', textEn:'Earth problems are more important than space.', axes:{tp:-1.0,ei:-1.2,sc:-0.3}, moral:{care:1.0,fairness:0.5,loyalty:0.3,authority:0.2,purity:0.5,liberty:-0.2}, rad:0.1 },
+  { id:131, text:'Генетическая модификация людей допустима.', textEn:'Genetic modification of humans is permissible.', axes:{tp:2.0,pc:-1.0,sr:-1.0}, moral:{care:-0.3,authority:-0.5,purity:-1.5,liberty:1.5}, rad:0.5 },
+  { id:132, text:'Генная инженерия человека аморальна.', textEn:'Human genetic engineering is immoral.', axes:{tp:-1.5,pc:1.2,sr:1.0}, moral:{care:1.0,fairness:0.3,loyalty:0.3,authority:0.5,purity:1.5,liberty:-1.0}, rad:0.2 },
+  { id:133, text:'Полиция должна иметь широкие полномочия.', textEn:'The police should have broad powers.', axes:{al:1.5,dr:-0.8,pc:-0.5}, moral:{loyalty:1.0,authority:1.5,purity:0.5,liberty:-1.5}, rad:0.4 },
+  { id:134, text:'Полномочия полиции должны быть ограничены.', textEn:'Police powers should be limited.', axes:{al:-1.5,dr:0.8,pc:0.5}, moral:{care:0.5,fairness:0.8,authority:-1.0,liberty:1.3}, rad:0.1 },
+  { id:135, text:'Судебная система должна быть выборной.', textEn:'The judicial system should be elected.', axes:{dr:1.5,al:-0.5,cd:-0.5}, moral:{fairness:1.0,authority:-0.8,liberty:1.2}, rad:0.2 },
+  { id:136, text:'Судьи должны назначаться пожизненно.', textEn:'Judges should be appointed for life.', axes:{dr:-1.2,al:0.3,pc:-0.5}, moral:{fairness:0.3,loyalty:0.5,authority:1.0,purity:0.3,liberty:-0.3}, rad:0.1 },
+  { id:137, text:'Забастовки — законный инструмент рабочих.', textEn:'Strikes are a legal tool for workers.', axes:{sc:-1.2,ci:-1.0,dr:0.8}, moral:{care:0.8,fairness:1.2,loyalty:0.5,authority:-0.5,liberty:0.5}, rad:0.3 },
+  { id:138, text:'Забастовки вредят экономике и должны ограничиваться.', textEn:'Strikes harm the economy and should be limited.', axes:{sc:1.2,al:1.0,dr:-0.5}, moral:{care:-0.3,fairness:-0.2,loyalty:0.5,authority:1.2,liberty:-1.0}, rad:0.2 },
+  { id:139, text:'Общественная собственность на жильё.', textEn:'Public ownership of housing.', axes:{sc:-1.8,ci:-1.5,al:0.5}, moral:{care:1.0,fairness:1.0,loyalty:0.3,authority:0.5,liberty:-0.5}, rad:0.4 },
+  { id:140, text:'Жильё — частная инвестиция.', textEn:'Housing is a private investment.', axes:{sc:1.8,ci:1.2,al:-0.3}, moral:{fairness:0.2,authority:-0.5,liberty:1.8}, rad:0.1 },
+  { id:141, text:'Патенты тормозят прогресс.', textEn:'Patents hinder progress.', axes:{tp:-1.2,sc:-0.8,ci:-0.5}, moral:{care:0.3,fairness:0.5,authority:-0.5,liberty:1.0}, rad:0.3 },
+  { id:142, text:'Интеллектуальная собственность священна.', textEn:'Intellectual property is sacred.', axes:{tp:0.8,sc:1.2,ci:0.8}, moral:{fairness:0.3,loyalty:0.5,authority:0.8,purity:0.5,liberty:-0.2}, rad:0.1 },
+  { id:143, text:'Государство должно определять стандарты красоты в медиа.', textEn:'The state should set beauty standards in media.', axes:{al:1.0,pc:-1.2,ci:-0.5}, moral:{loyalty:0.5,authority:1.0,purity:1.0,liberty:-1.2}, rad:0.3 },
+  { id:144, text:'Стандарты красоты — личное дело каждого.', textEn:'Beauty standards are a personal matter.', axes:{al:-1.0,pc:0.8,ci:0.5}, moral:{fairness:0.3,authority:-0.8,purity:-0.5,liberty:1.5}, rad:0.1 },
+  { id:145, text:'Политические партии должны финансироваться государством.', textEn:'Political parties should be state-funded.', axes:{sc:-0.8,dr:1.0,al:0.3}, moral:{fairness:0.8,loyalty:0.5,authority:0.5,liberty:-0.3}, rad:0.1 },
+  { id:146, text:'Партии должны существовать на частные пожертвования.', textEn:'Parties should rely on private donations.', axes:{sc:1.0,dr:0.5,al:-0.5}, moral:{fairness:0.2,authority:-0.3,liberty:1.3}, rad:0.1 },
+  { id:147, text:'Экспорт оружия должен быть запрещён.', textEn:'Arms export should be banned.', axes:{pm:-1.5,gl:-0.8,sc:-0.3}, moral:{care:1.2,fairness:0.5,authority:-0.5,purity:0.3,liberty:-0.5}, rad:0.2 },
+  { id:148, text:'Торговля оружием — законный бизнес.', textEn:'Arms trade is a legal business.', axes:{pm:1.5,sc:1.0,gl:0.5}, moral:{care:-0.8,loyalty:0.5,authority:0.3,liberty:1.2}, rad:0.2 },
+  { id:149, text:'Обязательное голосование на выборах.', textEn:'Compulsory voting in elections.', axes:{dr:1.2,ci:-0.8,al:0.5}, moral:{fairness:0.8,loyalty:0.8,authority:0.8,liberty:-0.8}, rad:0.2 },
+  { id:150, text:'Голосование — право, а не обязанность.', textEn:'Voting is a right, not a duty.', axes:{dr:-0.5,al:-0.8,ci:0.3}, moral:{fairness:0.2,authority:-0.5,liberty:1.3}, rad:0.1 },
+  { id:151, text:'Исторические памятники нельзя сносить ни при каких условиях.', textEn:'Historical monuments must not be demolished under any circumstances.', axes:{pc:-1.5,rr:-1.0,in_na:0.8}, moral:{loyalty:1.2,authority:1.0,purity:1.0,liberty:-0.5}, rad:0.2 },
+  { id:152, text:'Снос памятников — часть исторического процесса.', textEn:'Demolition of monuments is part of the historical process.', axes:{pc:1.2,rr:0.8,in_na:-0.5}, moral:{fairness:0.5,loyalty:-0.5,authority:-0.8,purity:-0.5,liberty:1.0}, rad:0.3 },
+  { id:153, text:'Клонирование человека должно быть разрешено.', textEn:'Human cloning should be allowed.', axes:{tp:2.0,pc:-1.2,sr:-1.2}, moral:{care:-0.5,authority:-0.5,purity:-1.5,liberty:1.5}, rad:0.5 },
+  { id:154, text:'Клонирование человека — этическая катастрофа.', textEn:'Human cloning is an ethical disaster.', axes:{tp:-1.5,pc:1.2,sr:1.2}, moral:{care:1.0,fairness:0.3,loyalty:0.3,authority:0.5,purity:1.5,liberty:-1.0}, rad:0.2 },
+  { id:155, text:'Государство должно обеспечивать жильём каждого.', textEn:'The state should provide housing for everyone.', axes:{sc:-1.8,ci:-1.2,al:0.5}, moral:{care:1.5,fairness:1.2,loyalty:0.3,authority:0.5,liberty:-0.5}, rad:0.3 },
+  { id:156, text:'Жилищный вопрос — забота рынка.', textEn:'The housing issue is the market\'s concern.', axes:{sc:1.5,ci:1.0,al:-0.5}, moral:{fairness:0.2,authority:-0.3,liberty:1.5}, rad:0.1 },
+  { id:157, text:'Местные сообщества должны управлять школами.', textEn:'Local communities should run schools.', axes:{cd:-1.5,al:-0.8,dr:0.5}, moral:{care:0.3,fairness:0.5,loyalty:-0.3,authority:-1.0,liberty:1.2}, rad:0.2 },
+  { id:158, text:'Единые образовательные стандарты необходимы.', textEn:'Uniform educational standards are necessary.', axes:{cd:1.5,al:0.5,dr:-0.3}, moral:{fairness:0.5,loyalty:0.8,authority:1.2,purity:0.3,liberty:-0.5}, rad:0.1 },
+  { id:159, text:'Вегетарианство должно поощряться государством.', textEn:'Vegetarianism should be encouraged by the state.', axes:{ei:-1.2,pc:0.5,al:0.3}, moral:{care:1.0,fairness:0.3,authority:0.3,purity:0.8,liberty:-0.5}, rad:0.2 },
+  { id:160, text:'Питание — личный выбор без вмешательства.', textEn:'Diet is a personal choice without interference.', axes:{ei:0.8,al:-0.8,pc:-0.3}, moral:{authority:-0.5,purity:-0.5,liberty:1.5}, rad:0.1 },
+  // 15 новых уточняющих (161–175)
+  { id:161, text:'Государственное регулирование цен на лекарства необходимо.', textEn:'Government price controls on medicine are necessary.', axes:{sc:-1.2,al:0.8,ci:-0.5}, moral:{care:1.2,fairness:0.8}, rad:0.1 },
+  { id:162, text:'Право на ношение оружия снижает преступность.', textEn:'The right to bear arms reduces crime.', axes:{al:-1.5,pc:0.5}, moral:{liberty:1.3,care:-0.5}, rad:0.3 },
+  { id:163, text:'Уголовное наказание за хакерство должно быть суровым.', textEn:'Hacking should be severely punished.', axes:{al:1.2,dr:-0.5,tp:-0.8}, moral:{authority:1,liberty:-0.8}, rad:0.2 },
+  { id:164, text:'Бесплатный общественный транспорт снизит пробки.', textEn:'Free public transport would reduce traffic.', axes:{sc:-1.2,ei:-0.8,ci:-0.5}, moral:{care:0.8,fairness:0.5}, rad:0.1 },
+  { id:165, text:'Культурные фестивали должны получать господдержку.', textEn:'Cultural festivals should receive state support.', axes:{sc:-0.5,pc:0.8,in_na:-0.5}, moral:{care:0.3,loyalty:0.2}, rad:0.1 },
+  { id:166, text:'Обязательная служба в армии для мужчин — справедливо.', textEn:'Mandatory military service for men is fair.', axes:{pm:1.2,ci:-0.8,al:0.5}, moral:{loyalty:1.2,authority:0.8}, rad:0.3 },
+  { id:167, text:'Государство должно финансировать космические исследования.', textEn:'The state should fund space exploration.', axes:{tp:1.5,sc:-0.3,gl:-0.5}, moral:{care:0.2,liberty:0.3}, rad:0.1 },
+  { id:168, text:'Запрет рекламы алкоголя и табака оправдан.', textEn:'Banning alcohol and tobacco advertising is justified.', axes:{al:0.8,pc:0.5,ei:-0.3}, moral:{care:1,purity:0.5}, rad:0.2 },
+  { id:169, text:'Право на эвтаназию — признак цивилизованного общества.', textEn:'Right to euthanasia is a sign of a civilized society.', axes:{pc:1.2,al:-1,sr:-0.8}, moral:{care:0.8,liberty:1.2}, rad:0.2 },
+  { id:170, text:'Школьная форма дисциплинирует учеников.', textEn:'School uniforms discipline students.', axes:{al:0.6,pc:-1,cd:0.5}, moral:{authority:1,purity:0.8}, rad:0.1 },
+  { id:171, text:'Государство должно гарантировать рабочие места.', textEn:'The state should guarantee jobs.', axes:{sc:-1.8,ci:-1.2,al:0.5}, moral:{care:1.2,fairness:0.8}, rad:0.3 },
+  { id:172, text:'Приватизация здравоохранения повысит качество услуг.', textEn:'Privatizing healthcare would improve quality.', axes:{sc:1.5,ci:1,al:-0.5}, moral:{liberty:1.3,care:-0.5}, rad:0.2 },
+  { id:173, text:'Смертная казнь за коррупцию допустима.', textEn:'Death penalty for corruption is acceptable.', axes:{al:1.5,pc:-1,rd:0.8}, moral:{authority:1.2,purity:0.6}, rad:0.5 },
+  { id:174, text:'Государство должно субсидировать электромобили.', textEn:'The state should subsidize electric cars.', axes:{ei:-1.2,sc:-0.5,tp:0.5}, moral:{care:1,fairness:0.3}, rad:0.1 },
+  { id:175, text:'Национальная безопасность важнее приватности.', textEn:'National security outweighs privacy.', axes:{al:1.8,dr:-1,gl:0.8}, moral:{loyalty:1.5,authority:1.5,liberty:-1.5}, rad:0.4 }
+];
+
+const axesNames = {
+    sc:'Социализм ↔ Капитализм', al:'Авторитаризм ↔ Либертарианство', pc:'Прогрессивизм ↔ Консерватизм',
+    in_na:'Интернационализм ↔ Национализм', tp:'Технократизм ↔ Примитивизм', ei:'Экологизм ↔ Индустриализм',
+    rr:'Реформизм ↔ Радикализм', sr:'Секуляризм ↔ Религиозность', cd:'Централизм ↔ Децентрализация',
+    ci:'Коллективизм ↔ Индивидуализм', pm:'Пацифизм ↔ Милитаризм', dr:'Демократизм ↔ Диктатура',
+    gl:'Глобализм ↔ Изоляционизм'
+};
+const axisKeys = Object.keys(axesNames);
+const moralKeys = ['care','fairness','loyalty','authority','purity','liberty'];
+const moralNames = ['Забота','Справедливость','Лояльность','Авторитет','Чистота','Свобода'];
+
+const ideologies = [
+    { name:'Демократизм', profile:{sc:0,al:-1.5,pc:1,in_na:-0.5,tp:0.5,ei:0,rr:-1,sr:-1,cd:-0.5,ci:0,pm:-0.5,dr:-2,gl:-1} },
+    { name:'Социализм', profile:{sc:-2,al:0.5,pc:1,in_na:-1,tp:0,ei:-0.5,rr:0.5,sr:-1,cd:0.5,ci:-1.5,pm:-0.5,dr:-1,gl:-0.5} },
+    { name:'Коммунизм', profile:{sc:-3,al:1,pc:1,in_na:-1.5,tp:-0.5,ei:-0.5,rr:1.5,sr:-2,cd:1.5,ci:-2.5,pm:-1,dr:-0.5,gl:-1.5} },
+    { name:'Социал-демократизм', profile:{sc:-1.5,al:-0.5,pc:1.5,in_na:-0.5,tp:0.5,ei:-0.5,rr:-1,sr:-1.5,cd:0,ci:-1,pm:-1,dr:-2,gl:-1} },
+    { name:'Национализм', profile:{sc:0,al:0.5,pc:-1,in_na:2.5,tp:-0.5,ei:0.5,rr:0,sr:0.5,cd:1,ci:0.5,pm:1.5,dr:-0.5,gl:2} },
+    { name:'Либерализм', profile:{sc:1.5,al:-2,pc:1,in_na:-1,tp:1,ei:0.5,rr:-1,sr:-1.5,cd:-1,ci:1.5,pm:-1,dr:-1.5,gl:-1.5} },
+    { name:'Консерватизм', profile:{sc:1,al:0,pc:-2,in_na:1,tp:-0.5,ei:0.5,rr:-1.5,sr:1.5,cd:0.5,ci:1,pm:1,dr:-0.5,gl:0.5} },
+    { name:'Лютеранский социализм', profile:{sc:-1.5,al:-0.5,pc:-0.5,in_na:-0.5,tp:0,ei:-0.5,rr:-1,sr:2,cd:-0.5,ci:-1,pm:-1.5,dr:-1.5,gl:-0.5} },
+    { name:'Социал-либерализм', profile:{sc:-0.5,al:-1.5,pc:1.5,in_na:-0.5,tp:1,ei:-0.5,rr:-1,sr:-1.5,cd:-0.5,ci:0,pm:-1,dr:-2,gl:-1} },
+    { name:'Национал-консерватизм', profile:{sc:0.5,al:1,pc:-2.5,in_na:2.5,tp:-1,ei:0.5,rr:-0.5,sr:2,cd:1.5,ci:0.5,pm:1.5,dr:-0.5,gl:2} },
+    { name:'Технократизм', profile:{sc:0,al:0.5,pc:1.5,in_na:-0.5,tp:3,ei:1,rr:-0.5,sr:-1.5,cd:1,ci:0.5,pm:0,dr:-1,gl:-0.5} },
+    { name:'Анархизм', profile:{sc:-1,al:-3,pc:1.5,in_na:-1.5,tp:-1,ei:-1,rr:1.5,sr:-2,cd:-3,ci:-1.5,pm:-2.5,dr:1.5,gl:-2} },
+    { name:'Монархизм', profile:{sc:0.5,al:2,pc:-2.5,in_na:1.5,tp:-1.5,ei:0,rr:-2,sr:2.5,cd:2.5,ci:0,pm:1,dr:-2.5,gl:1} },
+    { name:'Радикализм', profile:{sc:-1,al:1.5,pc:0.5,in_na:0,tp:0,ei:0,rr:3,rd:1.5,sr:-1,cd:1,ci:-1,pm:0.5,dr:-0.5,gl:0} },
+    { name:'Радикальный социализм', profile:{sc:-2.5,al:1,pc:1,in_na:-1,tp:-0.5,ei:-1,rr:2.5,sr:-2,cd:1,ci:-2,pm:-1.5,dr:-0.5,gl:-1} },
+    { name:'Зелёный демократизм', profile:{sc:-1,al:-1.5,pc:1.5,in_na:-1,tp:-0.5,ei:-3,rr:-1,sr:-1,cd:-1.5,ci:-0.5,pm:-2,dr:-2,gl:-1.5} },
+    { name:'Радикальный демократизм', profile:{sc:-0.5,al:-1.5,pc:1.5,in_na:-1,tp:0.5,ei:-0.5,rr:1.5,sr:-1.5,cd:-1.5,ci:-0.5,pm:-1,dr:-2.5,gl:-1} },
+    { name:'Демократ-либерализм', profile:{sc:1,al:-2,pc:1.5,in_na:-0.5,tp:1,ei:0,rr:-1.5,sr:-1.5,cd:-1,ci:1,pm:-1,dr:-2,gl:-1} },
+    { name:'Примитивизм', profile:{sc:-0.5,al:-1.5,pc:-1,in_na:-1,tp:-3,ei:-2.5,rr:1,sr:-1,cd:-2,ci:-1,pm:-2,dr:0.5,gl:-1.5} },
+    { name:'Тотальный консерватизм', profile:{sc:0.5,al:2.5,pc:-3,in_na:2,tp:-2,ei:0.5,rr:-2.5,sr:3,cd:2.5,ci:0.5,pm:2,dr:-2,gl:2} },
+    { name:'Революционный социализм', profile:{sc:-3,al:1.5,pc:1,in_na:-1,tp:-0.5,ei:-1,rr:3,sr:-2.5,cd:1.5,ci:-2.5,pm:-1.5,dr:-0.5,gl:-1.5} },
+    { name:'Социал-реализм', profile:{sc:-1.5,al:0.5,pc:-0.5,in_na:0.5,tp:0.5,ei:0,rr:-1,sr:-0.5,cd:0.5,ci:-1,pm:0,dr:-1,gl:0} },
+    { name:'Пан-дарвинизм', profile:{sc:1.5,al:1,pc:-1.5,in_na:1.5,tp:1.5,ei:1.5,rr:1,sr:-1.5,cd:1,ci:2,pm:2,dr:-1,gl:1} },
+    { name:'Фашизм', profile:{sc:0,al:3,pc:-2.5,in_na:3,tp:-1,ei:0.5,rr:1.5,sr:1,cd:3,ci:-0.5,pm:3,dr:-3,gl:2.5} },
+    { name:'Диктаторский демократизм', profile:{sc:0,al:2,pc:-0.5,in_na:1,tp:0.5,ei:0,rr:-0.5,sr:-0.5,cd:2,ci:0,pm:1.5,dr:-1.5,gl:0.5} },
+    { name:'Тотализм', profile:{sc:0,al:3,pc:-2,in_na:2,tp:-1,ei:0.5,rr:1,sr:0.5,cd:3,ci:-1,pm:2.5,dr:-3,gl:2} },
+    { name:'Социал-шовинизм', profile:{sc:-1.5,al:1.5,pc:-1,in_na:2.5,tp:-0.5,ei:0,rr:0.5,sr:0,cd:1.5,ci:-1.5,pm:1.5,dr:-1,gl:1.5} },
+    { name:'Сталинизм', profile:{sc:-2.5,al:3,pc:-1,in_na:1,tp:0,ei:0.5,rr:2,sr:-2,cd:3,ci:-2,pm:2,dr:-3,gl:1} },
+    { name:'Троцкизм', profile:{sc:-2.5,al:0.5,pc:1.5,in_na:-2,tp:0.5,ei:-0.5,rr:2.5,sr:-2.5,cd:0,ci:-2,pm:-1,dr:-1,gl:-2} },
+    { name:'Анархо-коммунизм', profile:{sc:-2.5,al:-3,pc:1.5,in_na:-2,tp:-1,ei:-1.5,rr:2,sr:-2.5,cd:-3,ci:-2.5,pm:-3,dr:1.5,gl:-2.5} },
+    { name:'Анархо-капитализм', profile:{sc:3,al:-3,pc:-0.5,in_na:-1,tp:1.5,ei:1,rr:1.5,sr:-1.5,cd:-3,ci:3,pm:-1,dr:1,gl:-1.5} },
+    { name:'Рыночный социализм', profile:{sc:-1,al:-1,pc:1,in_na:-0.5,tp:0.5,ei:-0.5,rr:-0.5,sr:-1,cd:-0.5,ci:-0.5,pm:-1,dr:-1.5,gl:-0.5} },
+    { name:'Национал-большевизм', profile:{sc:-2,al:2.5,pc:-1.5,in_na:3,tp:-1,ei:0,rr:2,sr:-1,cd:2.5,ci:-1.5,pm:2.5,dr:-2,gl:2.5} },
+    { name:'Эко-социализм', profile:{sc:-2,al:-1,pc:1.5,in_na:-1,tp:-0.5,ei:-3,rr:0.5,sr:-1.5,cd:-0.5,ci:-1.5,pm:-2,dr:-1.5,gl:-1.5} },
+    { name:'Теократизм', profile:{sc:0,al:2.5,pc:-3,in_na:1,tp:-2,ei:0,rr:-2,sr:3,cd:2,ci:-0.5,pm:1.5,dr:-2.5,gl:1} },
+    { name:'Корпоративизм', profile:{sc:0.5,al:2,pc:-1.5,in_na:1.5,tp:0.5,ei:1,rr:-1,sr:0.5,cd:2,ci:0,pm:1.5,dr:-2,gl:1} },
+    { name:'Центризм', profile:{sc:0,al:0,pc:0,in_na:0,tp:0,ei:0,rr:-1.5,sr:0,cd:0,ci:0,pm:0,dr:-1,gl:0} },
+    { name:'Либертарианский социализм', profile:{sc:-1.5,al:-2.5,pc:1.5,in_na:-1.5,tp:-0.5,ei:-1,rr:0.5,sr:-2,cd:-2.5,ci:-1,pm:-2,dr:1,gl:-2} },
+    { name:'Неоконсерватизм', profile:{sc:1.5,al:0.5,pc:-1.5,in_na:1.5,tp:0.5,ei:0.5,rr:-1,sr:1,cd:0.5,ci:1.5,pm:1.5,dr:-1,gl:0.5} },
+    { name:'Пост-гуманизм', profile:{sc:0,al:-1,pc:2,in_na:-1.5,tp:2.5,ei:1,rr:1,sr:-2,cd:-1,ci:0.5,pm:-1,dr:-0.5,gl:-1.5} },
+    { name:'Трансгуманизм', profile:{sc:0.5,al:-1.5,pc:2,in_na:-1,tp:3,ei:1.5,rr:0.5,sr:-2.5,cd:-0.5,ci:1,pm:-0.5,dr:-1,gl:-1} },
+    { name:'Синдикализм', profile:{sc:-2,al:-1.5,pc:0.5,in_na:-1,tp:-0.5,ei:-0.5,rr:1.5,sr:-1.5,cd:-2,ci:-2,pm:-1.5,dr:-0.5,gl:-1} },
+    { name:'Муниципализм', profile:{sc:-1,al:-1.5,pc:1,in_na:-0.5,tp:0,ei:-1,rr:-0.5,sr:-1,cd:-2.5,ci:-1,pm:-1.5,dr:-1.5,gl:-0.5} },
+    { name:'Социальный национализм', profile:{sc:-1.5,al:1,pc:-1.5,in_na:2.5,tp:-0.5,ei:0,rr:0,sr:0.5,cd:1.5,ci:-1,pm:1,dr:-0.5,gl:1.5} },
+    { name:'Акселерационизм', profile:{sc:0.5,al:-0.5,pc:2,in_na:-0.5,tp:2.5,ei:1.5,rr:1.5,sr:-2,cd:0,ci:1,pm:0,dr:-0.5,gl:-0.5} },
+    { name:'Традиционализм', profile:{sc:0,al:1.5,pc:-3,in_na:1.5,tp:-2.5,ei:0,rr:-2.5,sr:3,cd:1.5,ci:-0.5,pm:0.5,dr:-1.5,gl:1.5} },
+    { name:'Реакционизм', profile:{sc:1,al:2,pc:-3,in_na:2,tp:-2,ei:0.5,rr:-2,sr:2.5,cd:2,ci:1,pm:2,dr:-2,gl:2} },
+    { name:'Ультраконсерватизм', profile:{sc:1,al:2.5,pc:-3,in_na:2.5,tp:-2.5,ei:0.5,rr:-2.5,sr:3,cd:2.5,ci:1,pm:2.5,dr:-2.5,gl:2.5} },
+    { name:'Неолиберализм', profile:{sc:2.5,al:-1.5,pc:0.5,in_na:-1,tp:1.5,ei:1,rr:-1.5,sr:-1,cd:-0.5,ci:2.5,pm:-0.5,dr:-1.5,gl:-2} },
+    { name:'Левый популизм', profile:{sc:-1.5,al:-0.5,pc:0.5,in_na:-0.5,tp:0,ei:-1,rr:0.5,sr:-1,cd:-0.5,ci:-1,pm:-1,dr:-1.5,gl:-0.5} },
+    { name:'Правый популизм', profile:{sc:0.5,al:0.5,pc:-1.5,in_na:2,tp:-0.5,ei:0.5,rr:0.5,sr:1,cd:0.5,ci:0.5,pm:1,dr:-1,gl:1.5} },
+];
+
+// ==================== СОСТОЯНИЕ И ЯЗЫК ====================
+const state = { currentQuestion:0, answers:{}, questionOrder:[], testMode:'full', nickname:'', ttsEnabled:false, lang:'ru' };
+const answerValues = [4,3,2,1,0,-1,-2,-3,-4];
+const optionLabelsRu = ['Полностью согласен','Согласен','Скорее согласен','Частично согласен','Нейтрально','Частично не согласен','Скорее не согласен','Не согласен','Полностью не согласен'];
+const optionLabelsEn = ['Strongly agree','Agree','Somewhat agree','Slightly agree','Neutral','Slightly disagree','Somewhat disagree','Disagree','Strongly disagree'];
+
+function t(key) {
+    const dict = {
+        ru: { subtitleHome:'Политико-идеологический анализ', descHome:'Глубокий тест из 175 вопросов (быстрый — 45). Определи свой профиль по 14 осям и 40+ идеологиям.', progress:(c,t)=>`Вопрос ${c}/${t}` },
+        en: { subtitleHome:'Political-Ideological Analysis', descHome:'In-depth test of 175 questions (quick 45). Determine your profile across 14 axes and 40+ ideologies.', progress:(c,t)=>`Question ${c}/${t}` }
+    };
+    return dict[state.lang]?.[key] || key;
+}
+window.toggleLang = function() {
+    state.lang = state.lang==='ru'?'en':'ru';
+    document.getElementById('lang-switch').textContent = state.lang==='ru'?'🌐 EN':'🌐 RU';
+    updateUITexts();
+    if (state.screen==='test') renderQuestion();
+};
+function updateUITexts() {
+    document.getElementById('subtitle-home').textContent = t('subtitleHome');
+    document.getElementById('desc-home').textContent = t('descHome');
+}
+
+// ==================== ЭКРАНЫ ====================
+function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(`screen-${name}`).classList.add('active');
+    state.screen = name;
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+function startTest(mode) {
+    state.testMode = mode;
+    state.answers = {};
+    state.currentQuestion = 0;
+    const total = mode==='quick' ? 45 : 175;
+    state.questionOrder = [...Array(questions.length).keys()].sort(()=>Math.random()-0.5).slice(0,total);
+    document.getElementById('test-mode-badge').textContent = mode==='quick'?'⚡ Быстрый':'Полный';
+    showScreen('test');
+    renderQuestion();
+    updateProgress();
+    updateNavButtons();
+    if (state.ttsEnabled) speakCurrent();
+}
+window.startFullTest = ()=>{ state.nickname = document.getElementById('nickname-field').value.trim(); startTest('full'); };
+window.startQuickTest = ()=>{ state.nickname = document.getElementById('nickname-field').value.trim(); startTest('quick'); };
+window.resumeTest = ()=>{
+    const saved = localStorage.getItem('ideologySpectrum_progress');
+    if (saved) { const data = JSON.parse(saved); Object.assign(state, data); showScreen('test'); renderQuestion(); updateProgress(); updateNavButtons(); }
+    else startTest('full');
+};
+window.saveAndExit = ()=>{ localStorage.setItem('ideologySpectrum_progress', JSON.stringify({...state,screen:'home'})); showScreen('home'); };
+window.restartTest = ()=>{ localStorage.removeItem('ideologySpectrum_progress'); state.answers={}; showScreen('home'); };
+window.backToResults = ()=> showScreen('results');
+
+function renderQuestion() {
+    const q = questions[state.questionOrder[state.currentQuestion]];
+    const text = state.lang==='ru' ? q.text : (q.textEn || q.text);
+    document.getElementById('question-text').textContent = text;
+    document.getElementById('q-progress-text').textContent = t('progress')(state.currentQuestion+1, state.questionOrder.length);
+    const container = document.getElementById('options-container');
+    container.innerHTML = '';
+    const labels = state.lang==='ru' ? optionLabelsRu : optionLabelsEn;
+    const ans = state.answers[q.id];
+    labels.forEach((l,i)=>{
+        const btn = document.createElement('button');
+        btn.className = 'option-btn' + (ans===answerValues[i]?' selected':'');
+        btn.innerHTML = `<span class="option-dot"></span>${l}`;
+        btn.onclick = ()=>{ state.answers[q.id]=answerValues[i]; renderQuestion(); updateNavButtons(); updateProgress(); };
+        container.appendChild(btn);
+    });
+}
+function updateProgress() {
+    const pct = Math.round((Object.keys(state.answers).length/state.questionOrder.length)*100);
+    document.getElementById('q-pct').textContent = pct;
+    document.getElementById('progress-fill').style.width = pct+'%';
+}
+function updateNavButtons() {
+    document.getElementById('btn-prev').disabled = state.currentQuestion===0;
+    const q = questions[state.questionOrder[state.currentQuestion]];
+    document.getElementById('btn-next').disabled = !state.answers.hasOwnProperty(q.id);
+}
+window.nextQuestion = function() {
+    if (!state.answers.hasOwnProperty(questions[state.questionOrder[state.currentQuestion]].id)) return;
+    if (state.currentQuestion >= state.questionOrder.length-1) { finishTest(); return; }
+    state.currentQuestion++; renderQuestion(); updateProgress(); updateNavButtons();
+};
+window.prevQuestion = function() { if (state.currentQuestion>0) { state.currentQuestion--; renderQuestion(); updateProgress(); updateNavButtons(); } };
+
+// TTS
+window.toggleTTS = function() { state.ttsEnabled=!state.ttsEnabled; document.getElementById('tts-toggle').textContent=state.ttsEnabled?'🔊':'🔇'; if (state.ttsEnabled&&state.screen==='test') speakCurrent(); };
+function speakCurrent() {
+    if (!state.ttsEnabled) return;
+    const q = questions[state.questionOrder[state.currentQuestion]];
+    const u = new SpeechSynthesisUtterance(state.lang==='ru'?q.text:q.textEn);
+    u.lang = state.lang==='ru'?'ru-RU':'en-US'; u.rate=0.9;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+// ==================== АНАЛИЗ (КОСИНУСНОЕ СХОДСТВО) ====================
+function calculateResults() {
+    const scores = {};
+    axisKeys.forEach(k => scores[k] = 0);
+    const moral = {};
+    moralKeys.forEach(k => moral[k] = 0);
+    let rad = 0, total = 0;
+
+    for (const [qIdStr, ans] of Object.entries(state.answers)) {
+        const qId = parseInt(qIdStr);
+        const q = questions.find(q => q.id === qId);
+        if (!q) continue;
+        const norm = ans / 4;
+        for (const [axis, weight] of Object.entries(q.axes)) {
+            if (scores.hasOwnProperty(axis)) scores[axis] += norm * weight;
+        }
+        if (q.moral) {
+            for (const [mk, mw] of Object.entries(q.moral)) {
+                if (moral.hasOwnProperty(mk)) moral[mk] += norm * mw;
+            }
+        }
+        if (q.rad) rad += Math.abs(norm) * q.rad;
+        total++;
+    }
+
+    const axes = {};
+    for (const key of axisKeys) {
+        axes[key] = Math.max(-3, Math.min(3, (scores[key] / (total || 1)) * 3));
+    }
+
+    const moralRes = {};
+    for (const key of moralKeys) {
+        moralRes[key] = Math.max(-3, Math.min(3, (moral[key] / (total || 1)) * 3));
+    }
+
+    const radicalism = Math.min(1, rad / (total || 1));
+    return { axes, moral: moralRes, radicalism };
+}
+
+function getRadicalLevel(v) {
+    if (v < 0.25) return { level:'Умеренный', cls:'low', segs:1 };
+    if (v < 0.5) return { level:'Склонный', cls:'mid', segs:2 };
+    if (v < 0.75) return { level:'Радикальный', cls:'high', segs:3 };
+    return { level:'Экстремальный', cls:'ext', segs:4 };
+}
+
+function cosineSimilarity(a, b) {
+    let dot = 0, normA = 0, normB = 0;
+    for (const key of axisKeys) {
+        dot += a[key] * b[key];
+        normA += a[key] * a[key];
+        normB += b[key] * b[key];
+    }
+    if (normA === 0 || normB === 0) return 0;
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function closestIdeologies(axes, radicalism) {
+    return ideologies.map(ideo => {
+        const profile = {};
+        for (const key of axisKeys) {
+            profile[key] = ideo.profile.hasOwnProperty(key) ? ideo.profile[key] : 0;
+        }
+        const sim = cosineSimilarity(axes, profile);
+        let radAdjust = 0;
+        if (ideo.profile.rd !== undefined) {
+            const expectedRad = ideo.profile.rd / 3 + 0.5;
+            radAdjust = 1 - Math.abs(radicalism - expectedRad) * 2;
+            radAdjust = Math.max(0, radAdjust);
+        }
+        const match = Math.round((sim * 0.7 + (ideo.profile.rd !== undefined ? radAdjust * 0.3 : 0)) * 100);
+        return { name: ideo.name, match: Math.min(100, match) };
+    }).sort((a, b) => b.match - a.match);
+}
+
+function finishTest() {
+    showScreen('loading');
+    setTimeout(() => {
+        const { axes, moral, radicalism } = calculateResults();
+        const ideoRes = closestIdeologies(axes, radicalism);
+        const top = ideoRes[0];
+        const rl = getRadicalLevel(radicalism);
+
+        document.getElementById('main-ideology').textContent = top.name;
+        document.getElementById('main-match').textContent = top.match + '%';
+        document.getElementById('radical-level').textContent = rl.level;
+        document.getElementById('radical-meter').innerHTML = Array.from({ length: 4 }, (_, i) =>
+            `<span class="radical-seg${i < rl.segs ? ' active ' + (rl.cls === 'mid' ? 'mid' : rl.cls === 'high' ? 'high' : 'ext') : ''}"></span>`
+        ).join('');
+        document.getElementById('top-ideologies').innerHTML = ideoRes.slice(0, 5).map((ir, i) =>
+            `<div class="ideology-row${i === 0 ? ' top' : ''}"><span>${i + 1}. ${ir.name}</span><span>${ir.match}%</span></div>`
+        ).join('');
+
+        drawCompass(axes);
+        renderRadarChart(axes);
+        renderBarChart(ideoRes.slice(0, 10));
+        renderMoralChart(moral);
+
+        state._results = { axes, moral, radicalism, ideoRes, top, rl };
+        showScreen('results');
+        localStorage.removeItem('ideologySpectrum_progress');
+    }, 1200);
+}
+
+function drawCompass(axes) {
+    const canvas = document.getElementById('compassCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = 400, h = 400;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+    const ux = (axes.sc + 3) / 6 * w, uy = (3 - axes.al) / 6 * h;
+    ctx.fillStyle = '#6ec6f5'; ctx.beginPath(); ctx.arc(ux, uy, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'white'; ctx.fillText('Вы', ux + 10, uy - 10);
+    const points = [
+        { n: 'Социализм', x: -2, y: 0.5 }, { n: 'Либерализм', x: 1.5, y: -2 },
+        { n: 'Консерватизм', x: 1, y: 0 }, { n: 'Анархизм', x: -1, y: -3 }
+    ];
+    points.forEach(p => {
+        const px = (p.x + 3) / 6 * w, py = (3 - p.y) / 6 * h;
+        ctx.fillStyle = '#b388ff'; ctx.beginPath(); ctx.arc(px, py, 5, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillText(p.n, px + 6, py - 6);
+    });
+}
+
+let radarInst, barInst, moralInst, detailRadarInst;
+function renderRadarChart(axes) {
+    const ctx = document.getElementById('radarChart'); if (!ctx) return;
+    if (radarInst) radarInst.destroy();
+    radarInst = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: axisKeys.map(k => axesNames[k].split(' ↔ ')[0]),
+            datasets: [{ data: axisKeys.map(k => axes[k]), borderColor: '#6ec6f5', backgroundColor: 'rgba(110,198,245,0.15)', borderWidth: 2 }]
+        },
+        options: { responsive: true, scales: { r: { min: -3, max: 3, ticks: { display: false } } }, plugins: { legend: { display: false } } }
+    });
+}
+function renderBarChart(ideoRes) {
+    const ctx = document.getElementById('barChart'); if (!ctx) return;
+    if (barInst) barInst.destroy();
+    barInst = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: ideoRes.map(i => i.name), datasets: [{ data: ideoRes.map(i => i.match), backgroundColor: 'rgba(179,136,255,0.6)' }] },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+    });
+}
+function renderMoralChart(moral) {
+    const ctx = document.getElementById('moralChart'); if (!ctx) return;
+    if (moralInst) moralInst.destroy();
+    moralInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: moralNames,
+            datasets: [{ data: moralKeys.map(k => moral[k]), backgroundColor: moralKeys.map(k => moral[k] > 0 ? 'rgba(110,198,245,0.6)' : 'rgba(255,107,157,0.6)') }]
+        },
+        options: { responsive: true, scales: { y: { min: -3, max: 3 } }, plugins: { legend: { display: false } } }
+    });
+}
+window.showDetail = () => {
+    if (!state._results) return;
+    const { axes, ideoRes } = state._results;
+    showScreen('detail');
+    if (detailRadarInst) detailRadarInst.destroy();
+    const ctx = document.getElementById('detailRadar');
+    if (ctx) detailRadarInst = new Chart(ctx, {
+        type: 'radar',
+        data: { labels: axisKeys.map(k => axesNames[k].split(' ↔ ')[0]), datasets: [{ data: axisKeys.map(k => axes[k]), borderColor: '#b388ff' }] },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+    document.getElementById('all-axes').innerHTML = axisKeys.map(k => {
+        const pct = ((axes[k] + 3) / 6 * 100).toFixed(1);
+        return `<div><span>${axesNames[k]}</span><div style="background:rgba(255,255,255,0.05);height:6px;border-radius:3px;"><div style="width:${pct}%;height:100%;background:${axes[k] > 0 ? '#b388ff' : '#6ec6f5'};border-radius:3px;"></div></div></div>`;
+    }).join('');
+    document.getElementById('all-ideologies').innerHTML = ideoRes.map((ir, i) =>
+        `<div class="ideology-row${i === 0 ? ' top' : ''}"><span>${i + 1}. ${ir.name}</span><span>${ir.match}%</span></div>`
+    ).join('');
+};
+window.showAnswers = () => {
+    showScreen('answers');
+    document.getElementById('answers-list').innerHTML = state.questionOrder.map((qIdx, i) => {
+        const q = questions[qIdx];
+        const ans = state.answers[q.id];
+        const ansText = (state.lang === 'ru' ? optionLabelsRu : optionLabelsEn)[answerValues.indexOf(ans)] || '—';
+        return `<div style="margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.05);"><strong>${i + 1}. ${state.lang === 'ru' ? q.text : q.textEn}</strong><br>↳ ${ansText}</div>`;
+    }).join('');
+};
+window.startSparring = () => {
+    if (!state._results) return;
+    showScreen('sparring');
+    document.getElementById('sparring-intro').textContent = `Ваша идеология — ${state._results.top.name}. Противоположный взгляд: Либерализм.`;
+    document.getElementById('sparring-arguments').innerHTML = `<p>🔹 Свободный рынок эффективнее государства.</p><p>🔹 Высокие налоги снижают мотивацию.</p><p>🔹 Традиции могут тормозить прогресс.</p>`;
+};
+window.exportPNG = async () => {
+    const c = await html2canvas(document.getElementById('export-target'), { backgroundColor: '#0a0a0f', scale: 2 });
+    const a = document.createElement('a'); a.download = 'IdeologySpectrum.png'; a.href = c.toDataURL(); a.click();
+};
+window.exportPDF = async () => {
+    const c = await html2canvas(document.getElementById('export-target'), { backgroundColor: '#0a0a0f', scale: 3 });
+    const { jsPDF } = window.jspdf;
+    const p = new jsPDF('p', 'mm', 'a4');
+    const w = p.internal.pageSize.getWidth() - 20;
+    const h = (c.height * w) / c.width;
+    p.addImage(c.toDataURL(), 'PNG', 10, 10, w, h);
+    p.save('IdeologySpectrum.pdf');
+};
+window.generateShareCard = async () => {
+    const el = document.createElement('div');
+    el.innerHTML = `<div style="background:#0a0a0f;color:white;padding:24px;border-radius:20px;text-align:center;width:400px;"><h2>Ideology Spectrum</h2><p>${state._results.top.name} (${state._results.top.match}%)</p><p>${state.nickname || ''}</p></div>`;
+    document.body.appendChild(el);
+    const c = await html2canvas(el, { scale: 2 });
+    const a = document.createElement('a'); a.download = 'share.png'; a.href = c.toDataURL(); a.click();
+    el.remove();
+};
+
+updateResumeButton();
+function updateResumeButton() { document.getElementById('btn-resume').style.display = localStorage.getItem('ideologySpectrum_progress') ? 'inline-block' : 'none'; }
+document.addEventListener('keydown', e => {
+    if (state.screen === 'test') {
+        if (e.key >= '1' && e.key <= '9') {
+            const idx = parseInt(e.key) - 1;
+            state.answers[questions[state.questionOrder[state.currentQuestion]].id] = answerValues[idx];
+            renderQuestion(); updateNavButtons(); updateProgress();
+        }
+        if (e.key === 'ArrowRight' || e.key === 'Enter') { if (!document.getElementById('btn-next').disabled) nextQuestion(); }
+        if (e.key === 'ArrowLeft') prevQuestion();
+    }
+});
+updateUITexts();
+</script>
+</body>
+</html>
